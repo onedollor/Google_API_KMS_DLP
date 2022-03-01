@@ -1,6 +1,7 @@
 ##################################################################
 #Some of code Copied from Google API document sample code.
 ##################################################################
+from google.cloud import kms
 
 def create_key_ring(project_id, location_id, key_ring_id):
     """
@@ -32,17 +33,19 @@ def create_key_ring(project_id, location_id, key_ring_id):
 
     _key_ring = client.get_key_ring(name=key_ring_name)
 
-    if not (_key_ring is not None and _key_ring.name is not None):
+    try:
+        _key_ring = client.get_key_ring(name=key_ring_name)
+        print('Existed key ring: {}'.format(_key_ring.name))
+        return _key_ring  
+    except:
         # Call the API.
         created_key_ring = client.create_key_ring(
             request={'parent': location_name, 'key_ring_id': key_ring_id, 'key_ring': key_ring})
         print('Created key ring: {}'.format(created_key_ring.name))
         return created_key_ring
-    else:
-        print('Existed key ring: {}'.format(_key_ring.name))
-        return _key_ring 
-	
-def create_key_hsm(project_id, location_id, key_ring_id, key_id):
+
+
+def create_key(project_id, location_id, key_ring_id, key_id, key_protection_level):
     """
     Creates a new key in Cloud KMS backed by Cloud HSM.
 
@@ -71,7 +74,8 @@ def create_key_hsm(project_id, location_id, key_ring_id, key_id):
     # Build the key.
     purpose = kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
     algorithm = kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
-    protection_level = kms.ProtectionLevel.HSM
+    #protection_level = kms.ProtectionLevel.SOFTWARE
+    protection_level = key_protection_level
     key = {
         'purpose': purpose,
         'version_template': {
@@ -86,17 +90,16 @@ def create_key_hsm(project_id, location_id, key_ring_id, key_id):
 
     crypto_key_name = client.crypto_key_path(project_id, location_id, key_ring_id,key_id)
 
-    _crypto_key = client.get_crypto_key(name=crypto_key_name)
-
-    if not (_crypto_key is not None and _crypto_key.name is not None):
+    try:
+        _crypto_key = client.get_crypto_key(name=crypto_key_name)
+        print('Existed crypto key: {}'.format(_crypto_key.name))
+        return _crypto_key 
+    except:
         # Call the API.
         created_key = client.create_crypto_key(
             request={'parent': key_ring_name, 'crypto_key_id': key_id, 'crypto_key': key})
         print('Created hsm key: {}'.format(created_key.name))
         return created_key
-    else:
-        print('Existed crypto key: {}'.format(_crypto_key.name))
-        return _crypto_key 
 
 
 def openssl_rand_32_base64():
@@ -255,15 +258,20 @@ def dlp_update_deidentify_template_wrapped_key(project_id, location_id, deidenti
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    project_id='some project id'
+    project_id='xxxxxxx'
     location_id='global'
     key_ring_id='my-key-ring'
-    key_id='my-hsm-key'
+    key_id='my-software-key'
     deidentify_template_id='deTest'
 
+    
     crypto_key_ring_name=create_key_ring(project_id,location_id,key_ring_id).name
     print("crypto_key_ring_name:",crypto_key_ring_name)
-    crypto_key_name=create_key_hsm(project_id,location_id,key_ring_id,key_id).name
+
+    #Set ProtectionLevel.SOFTWARE due to $1 charge per key per month for ProtectionLevel.HSM
+    key_protection_level=kms.ProtectionLevel.SOFTWARE
+
+    crypto_key_name=create_key(project_id,location_id,key_ring_id,key_id,key_protection_level).name
     print("crypto_key_name:",crypto_key_name)
 
     openssl_key_b64 = openssl_rand_32_base64()
@@ -279,4 +287,4 @@ if __name__ == '__main__':
     response=dlp_update_deidentify_template_wrapped_key(project_id,location_id, deidentify_template_id, crypto_key_name, wrapped_key_base64, surrogate_info_type)
     print("update_deidentify_template response:\n",response)
 
-    #dlp_get_deidentify_template(project_id,location_id, deidentify_template_id)
+    dlp_get_deidentify_template(project_id,location_id, deidentify_template_id)
