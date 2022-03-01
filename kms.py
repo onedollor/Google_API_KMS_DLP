@@ -81,7 +81,7 @@ def create_key_hsm(project_id, location_id, key_ring_id, key_id):
 
         # Optional: customize how long key versions should be kept before
         # destroying.
-        'destroy_scheduled_duration': duration_pb2.Duration().FromTimedelta(datetime.timedelta(days=1))
+        #'destroy_scheduled_duration': duration_pb2.Duration().FromTimedelta(datetime.timedelta(days=1))
     }
 
     crypto_key_name = client.crypto_key_path(project_id, location_id, key_ring_id,key_id)
@@ -105,7 +105,7 @@ def openssl_rand_32_base64():
     return b64encode(token_bytes(32)).decode()
 
 
-def wrap_key(project_id, location_id, key_ring_id, key_id, plaintext):
+def wrap_key_base64(project_id, location_id, key_ring_id, key_id, plaintext):
     # Import the client library.
     from google.cloud import kms
     from google.protobuf import duration_pb2
@@ -119,9 +119,9 @@ def wrap_key(project_id, location_id, key_ring_id, key_id, plaintext):
     response = client.encrypt(name=crypto_key_name, plaintext=plaintext)
 
     from base64 import b64encode
-    wrap_key = b64encode(response.ciphertext)
+    _wrap_key_base64 = b64encode(response.ciphertext)
 
-    return wrap_key
+    return _wrap_key_base64
 
 
 def dlp(project_id):
@@ -202,7 +202,6 @@ def dlp_get_deidentify_template(project_id, location_id, deidentify_template_id)
     response = client.get_deidentify_template(request=request)
 
     # Handle the response
-    # print(response)
     return response
 
 def dlp_update_deidentify_template_wrapped_key(project_id, location_id, deidentify_template_id, crypto_key_name, wrapped_key, surrogate_info_type):
@@ -256,7 +255,7 @@ def dlp_update_deidentify_template_wrapped_key(project_id, location_id, deidenti
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    project_id='xxxx'
+    project_id='some project id'
     location_id='global'
     key_ring_id='my-key-ring'
     key_id='my-hsm-key'
@@ -273,11 +272,11 @@ if __name__ == '__main__':
     from base64 import b64decode
     print("openssl_key_b64 binary:", b64decode(openssl_key_b64))
 
-    wrapped_key = wrap_key(project_id,location_id,key_ring_id,key_id, openssl_key_b64)
-    print(wrapped_key)
+    wrapped_key_base64 = wrap_key_base64(project_id,location_id,key_ring_id,key_id, openssl_key_b64)
+    print("wrapped_key_base64:",wrapped_key_base64)
 
     surrogate_info_type="siTestNew001"
-    response=dlp_update_deidentify_template_wrapped_key(project_id,location_id, deidentify_template_id, crypto_key_name, wrapped_key, surrogate_info_type)
-    print(response)
+    response=dlp_update_deidentify_template_wrapped_key(project_id,location_id, deidentify_template_id, crypto_key_name, wrapped_key_base64, surrogate_info_type)
+    print("update_deidentify_template response:\n",response)
 
     #dlp_get_deidentify_template(project_id,location_id, deidentify_template_id)
