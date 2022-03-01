@@ -1,3 +1,6 @@
+##################################################################
+#Some of code Copied from Google API document sample code.
+##################################################################
 
 def create_key_ring(project_id, location_id, key_ring_id):
     """
